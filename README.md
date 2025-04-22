@@ -5,13 +5,11 @@ This project demonstrates how I extended an on-premise IT infrastructure to Micr
 ---
 
 ## 📌 Table of Contents
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Steps & Configuration](#steps--configuration)
-- [Challenges Faced](#challenges-faced)
-- [Results](#results)
-- [Next Steps / Future Improvements](#next-steps--future-improvements)
-
+- [Overview](#-overview)
+- [Architecture](#-architecture)
+- [Steps & Configuration – Hybrid Network Setup](#-steps--configuration--hybrid-network-setup)
+- [Steps & Configuration – Azure Migrate and Failover](#-steps--configuration--azure-migrate-and-failover)
+- [Conclusion](#-conclusion)
 ---
 
 ## 🧾 Overview
@@ -152,4 +150,119 @@ This section covers the detailed configuration to establish a hybrid network con
 ---
 
 ✅ Once this setup is complete, Azure VMs will be able to communicate with internal on-prem servers, and vice versa. This enables a true hybrid cloud environment.
+
+## 🛠️ Steps & Configuration – Azure Migrate and Failover
+
+![ChatGPT Image Apr 22, 2025, 07_58_16 PM](https://github.com/user-attachments/assets/3362d669-f0e2-410c-bcb1-e4b38ea8617b)
+
+### ✅ Pre-requisites
+- Hybrid Network infrastructure with **VPN Gateway** already established (see previous section).
+- On-premise **VMware ESXi** environment.
+- Azure subscription with **VNet and subnet** configured (non-conflicting CIDR with on-prem).
+
+---
+
+### 🚀 Azure Migrate Setup
+
+1. **Create a Migration Project**
+   - Navigate to **Azure Migrate**.
+   - Go to **"Servers, Databases and Webapps"** → Create a project.
+   - Use **Public Endpoint**.
+
+2. **Setup Appliance Server (Connector)**
+   - Prepare a **Windows Server VM** in your on-prem network.
+   - In Azure Migrate → click **Discover**, choose:
+     - **"Via Appliance"**
+     - Platform: **VMware vSphere**
+   - Generate project key.
+   - Download the **PowerShell template (instead of OVA)** and run:
+     ```powershell
+     .\AzureMigrateInstaller.exe
+     ```
+     Follow prompts:
+     - Select **VMware**
+     - Azure **Public**
+     - Primary appliance
+     - Provide previously generated **Project Key**
+
+3. **Configure the Appliance**
+   - Open the Azure Migrate Appliance Manager (browser shortcut).
+   - Complete **pre-requisites** checks.
+   - **Authenticate to Azure** and validate the project key.
+   - Enter VMware ESXi details:
+     - IP, port, credentials
+     - Skip SQL, software inventory, ASP.NET discovery (optional)
+   - Start **Discovery**
+
+---
+
+### 📊 Assess VM Compatibility
+
+1. In Azure Migrate → Go to **Machines → Assess**
+   - Select **Azure VM** as target.
+   - Fill assessment settings (region, subscription, VM sizing).
+   - Create a **Group** and assign VMs.
+   - Review **compliance report**, VM sizing, and **estimated monthly costs**.
+  
+     ![image](https://github.com/user-attachments/assets/d20875e7-e326-4d71-ab57-2d24c34f6964)
+
+![image](https://github.com/user-attachments/assets/a2d019fc-e314-4ccb-8f09-1e874b73456f)
+
+
+---
+
+### 🔄 Replicate VM to Azure
+
+1. In Azure Migrate → **Replicate**:
+   - Choose source: **VMware**
+   - Use existing **Appliance** and **Group**
+   - Select VMs to replicate
+   - Set:
+     - **Target Region**
+     - **VNet** (Hybrid setup)
+     - **Production Subnet**
+     - **No infrastructure redundancy** (or change as required)
+   - Validate and begin **Replication**
+
+2. After replication:
+   - Go to **Replicated Machines**
+   - Ensure **"Migration Ready"** status
+
+---
+
+### 🔁 Migrate (Failover)
+
+1. In Azure Migrate → **Migrate** the replicated VM
+   - Optionally **Test Migration**
+   - Shutdown original on-prem VM (to avoid data mismatch)
+   - Proceed with full migration
+
+2. Monitor progress under **Migration Jobs**
+
+---
+
+### 🧪 Post-Migration Validation
+
+- Stop replication to avoid unwanted changes.
+- Assign a **Public IP** to Azure VM.
+- **RDP into the migrated VM**
+- Confirm:
+  - Services and applications are intact
+  - Connectivity to on-premise via VPN is working
+
+---
+
+## 📌 Conclusion
+
+This project demonstrates a comprehensive real-world implementation of a **hybrid IT infrastructure** by securely extending an on-premises network to **Microsoft Azure** using a Site-to-Site VPN configuration. Key accomplishments include:
+
+- 🔐 **Secure Hybrid Connectivity**: Designed and implemented a VPN tunnel between on-premise FortiGate Firewall and Azure VPN Gateway, ensuring seamless communication between on-prem systems (Active Directory, internal applications) and Azure-hosted VMs.
+
+- ☁️ **Azure Migration & Failover**: Leveraged Azure Migrate to assess, replicate, and migrate critical on-prem virtual machines (Web Server and Git Server) from VMware ESXi to Azure for business continuity and high availability.
+
+- 🛠️ **Custom Appliance Setup**: Deployed and configured the Azure Migrate appliance on-premises to integrate with VMware vSphere, handling discovery, assessment, and replication of workloads.
+
+- 🧪 **Testing & Validation**: Verified end-to-end connectivity, application accessibility, and service availability post-migration through RDP access and hybrid network tests.
+
+This solution ensures **high availability**, **disaster recovery readiness**, and **infrastructure scalability** by leveraging both on-premise and cloud environments in a unified and secure architecture.
 
